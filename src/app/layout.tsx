@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import "../styles/globals.css";
 import { ModeProvider } from "@/context/ModeContext";
+import { AuthProvider } from "@/context/AuthContext";
 
 export const metadata: Metadata = {
     title: "Antigravity - Logistics Marketplace",
@@ -15,11 +16,13 @@ export default function RootLayout({
     return (
         <html lang="en">
             <body>
-                <ModeProvider>
-                    <div className="container">
-                        {children}
-                    </div>
-                </ModeProvider>
+                <AuthProvider>
+                    <ModeProvider>
+                        <div className="app-container">
+                            {children}
+                        </div>
+                    </ModeProvider>
+                </AuthProvider>
             </body>
         </html>
     );

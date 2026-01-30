@@ -1,111 +1,208 @@
 "use client";
 
 import React, { useState } from "react";
-import { Navigation, Phone, MessageSquare, CheckCircle } from "lucide-react";
+import { Navigation, Phone, MessageSquare, Clock, MapPin, CreditCard, Package as PackageIcon, User } from "lucide-react";
+import Package3D from "@/components/shared/Package3D";
+import SlideButton from "@/components/shared/SlideButton";
 
-export default function ActiveJob({ onComplete }: { onComplete: () => void }) {
-    const [status, setStatus] = useState<"pickup" | "dropoff">("pickup");
+interface ActiveJobProps {
+    onComplete: () => void;
+}
 
-    const handleAction = () => {
+export default function ActiveJob({ onComplete }: ActiveJobProps) {
+    const [status, setStatus] = useState<"pickup" | "in_transit" | "dropoff">("pickup");
+
+    // Mock job data
+    const job = {
+        trackingId: "F165G258",
+        service: "Express Parcel",
+        receiver: "Emily Carter",
+        address: "2210 Coral Way, Apt 3C",
+        packageType: "Retail Merchandise",
+        paymentMethod: "Cash on Delivery",
+        notes: "Please ensure the package is handled with care — fragile items inside.",
+        distance: "0 mile",
+        time: "1 min",
+        eta: "10:05 PM",
+    };
+
+    const handleSlideComplete = () => {
         if (status === "pickup") {
+            setStatus("in_transit");
+        } else if (status === "in_transit") {
             setStatus("dropoff");
         } else {
             onComplete();
         }
     };
 
+    const slideText = {
+        pickup: "Slide to pick up the order",
+        in_transit: "Slide to arrive at destination",
+        dropoff: "Slide to complete delivery",
+    };
+
+    const statusLabel = {
+        pickup: "Looking for Courier",
+        in_transit: "In Transit",
+        dropoff: "Arriving Soon",
+    };
+
     return (
-        <div className="animate-enter">
-            {/* Header */}
+        <div className="animate-enter" style={{ paddingBottom: 100 }}>
+            {/* Header Stats */}
             <div style={{
-                background: 'var(--color-primary)',
-                color: 'white',
-                padding: '1.5rem',
-                borderRadius: '0 0 1.5rem 1.5rem',
-                marginBottom: '1.5rem'
+                display: "flex",
+                justifyContent: "space-around",
+                padding: "1rem 1.5rem",
+                borderBottom: "1px solid var(--color-border)",
+                background: "white",
             }}>
-                <div className="flex-between" style={{ marginBottom: '1rem' }}>
-                    <div>
-                        <div style={{ fontSize: '0.875rem', opacity: 0.8, marginBottom: 4 }}>Current Job</div>
-                        <h1 style={{ fontSize: '2rem', fontWeight: 800, margin: 0 }}>12 mins</h1>
-                        <div style={{ fontSize: '0.875rem', opacity: 0.8 }}>to destination</div>
-                    </div>
-                    <div style={{ background: 'rgba(255,255,255,0.2)', padding: 12, borderRadius: 12 }}>
-                        <Navigation size={24} />
-                    </div>
+                <div style={{ textAlign: "center" }}>
+                    <div style={{ fontSize: "0.75rem", color: "var(--color-text-secondary)" }}>Distance</div>
+                    <div style={{ fontWeight: 700 }}>{job.distance}</div>
                 </div>
-                <div style={{ height: 4, background: 'rgba(255,255,255,0.2)', borderRadius: 2, overflow: 'hidden' }}>
-                    <div style={{ width: '66%', height: '100%', background: 'white' }} />
+                <div style={{ textAlign: "center" }}>
+                    <div style={{ fontSize: "0.75rem", color: "var(--color-text-secondary)" }}>Time</div>
+                    <div style={{ fontWeight: 700 }}>{job.time}</div>
+                </div>
+                <div style={{ textAlign: "center" }}>
+                    <div style={{ fontSize: "0.75rem", color: "var(--color-text-secondary)" }}>ETA</div>
+                    <div style={{ fontWeight: 700 }}>{job.eta}</div>
                 </div>
             </div>
 
-            {/* Customer Info Card */}
-            <div className="driver-card" style={{ margin: '0 1.5rem', flexDirection: 'column', alignItems: 'stretch' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16 }}>
-                    <div className="avatar">
-                        <span style={{ fontWeight: 700, color: '#6B7280' }}>JD</span>
-                    </div>
-                    <div style={{ flex: 1 }}>
-                        <h3 style={{ fontWeight: 700, margin: 0 }}>John Doe</h3>
-                        <p style={{ fontSize: '0.75rem', color: '#6B7280', margin: 0 }}>Customer • 4.8 ★</p>
-                    </div>
-                    <div style={{ display: 'flex', gap: 8 }}>
-                        <button style={{
-                            width: 40, height: 40, borderRadius: '50%',
-                            background: '#F3F4F6', border: 'none', cursor: 'pointer',
-                            display: 'flex', alignItems: 'center', justifyContent: 'center'
+            {/* Tracking Card */}
+            <div style={{ padding: "1.5rem" }}>
+                <div style={{
+                    background: "white",
+                    borderRadius: 24,
+                    padding: "1.5rem",
+                    boxShadow: "0 4px 20px rgba(0,0,0,0.08)",
+                }}>
+                    {/* Package & ID */}
+                    <div style={{ display: "flex", alignItems: "center", gap: 16, marginBottom: "1rem" }}>
+                        <div style={{
+                            background: "#ECFDF5",
+                            borderRadius: 16,
+                            padding: "0.75rem",
                         }}>
-                            <MessageSquare size={18} color="#6B7280" />
-                        </button>
-                        <button style={{
-                            width: 40, height: 40, borderRadius: '50%',
-                            background: '#F3F4F6', border: 'none', cursor: 'pointer',
-                            display: 'flex', alignItems: 'center', justifyContent: 'center'
-                        }}>
-                            <Phone size={18} color="#6B7280" />
-                        </button>
+                            <Package3D color="green" size="medium" />
+                        </div>
+                        <div>
+                            <h2 style={{ fontWeight: 800, fontSize: "1.25rem", margin: 0, letterSpacing: "-0.02em" }}>
+                                #{job.trackingId}
+                            </h2>
+                            <div style={{
+                                display: "inline-flex",
+                                alignItems: "center",
+                                gap: 4,
+                                marginTop: 4,
+                                background: "#ECFDF5",
+                                color: "#10B981",
+                                fontSize: "0.75rem",
+                                fontWeight: 600,
+                                padding: "4px 10px",
+                                borderRadius: 20,
+                            }}>
+                                <span style={{ width: 6, height: 6, background: "#10B981", borderRadius: "50%" }} />
+                                {statusLabel[status]}
+                            </div>
+                        </div>
                     </div>
-                </div>
 
-                {/* Route */}
-                <div style={{ borderTop: '1px solid #E5E7EB', paddingTop: 16 }}>
-                    <div style={{ display: 'flex', gap: 12 }}>
-                        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
-                            <div style={{ width: 8, height: 8, background: '#D1D5DB', borderRadius: '50%' }} />
-                            <div style={{ width: 2, height: 32, background: '#E5E7EB' }} />
-                            <div style={{ width: 8, height: 8, background: 'var(--color-primary)', borderRadius: '50%' }} />
-                        </div>
-                        <div style={{ flex: 1 }}>
-                            <div style={{ marginBottom: 16 }}>
-                                <div style={{ fontSize: '0.625rem', color: '#9CA3AF' }}>Pickup</div>
-                                <div style={{ fontSize: '0.875rem', color: '#6B7280', textDecoration: 'line-through' }}>2210 Coral Way</div>
-                            </div>
-                            <div>
-                                <div style={{ fontSize: '0.625rem', color: '#9CA3AF' }}>Dropoff</div>
-                                <div style={{ fontSize: '0.875rem', fontWeight: 600 }}>1024 Ocean Dr</div>
-                            </div>
-                        </div>
+                    {/* Details Grid */}
+                    <div style={{
+                        display: "grid",
+                        gridTemplateColumns: "auto 1fr",
+                        gap: "0.75rem 1rem",
+                        fontSize: "0.875rem",
+                        marginBottom: "1.5rem",
+                    }}>
+                        <span style={{ color: "var(--color-text-secondary)" }}>Service</span>
+                        <span style={{ fontWeight: 500 }}>{job.service}</span>
+
+                        <span style={{ color: "var(--color-text-secondary)" }}>Receiver</span>
+                        <span style={{ fontWeight: 500 }}>{job.receiver}</span>
+
+                        <span style={{ color: "var(--color-text-secondary)" }}>Address</span>
+                        <span style={{ fontWeight: 500 }}>{job.address}</span>
+
+                        <span style={{ color: "var(--color-text-secondary)" }}>Package Type</span>
+                        <span style={{ fontWeight: 500 }}>{job.packageType}</span>
+
+                        <span style={{ color: "var(--color-text-secondary)" }}>Payment Method</span>
+                        <span style={{ fontWeight: 500 }}>{job.paymentMethod}</span>
                     </div>
+
+                    {/* Notes */}
+                    <div style={{
+                        background: "#F9FAFB",
+                        borderRadius: 12,
+                        padding: "0.75rem 1rem",
+                        fontSize: "0.8125rem",
+                        color: "var(--color-text-secondary)",
+                        fontStyle: "italic",
+                        marginBottom: "1.5rem",
+                    }}>
+                        "{job.notes}"
+                    </div>
+
+                    {/* Slide Button */}
+                    <SlideButton
+                        text={slideText[status]}
+                        onComplete={handleSlideComplete}
+                        color="#F472B6"
+                    />
                 </div>
             </div>
 
-            {/* Action Button */}
+            {/* Contact Support Footer */}
             <div style={{
-                position: 'fixed',
-                bottom: 100,
-                left: '50%',
-                transform: 'translateX(-50%)',
-                width: 'calc(100% - 48px)',
-                maxWidth: 432
+                position: "fixed",
+                bottom: 80,
+                left: 0,
+                right: 0,
+                display: "flex",
+                justifyContent: "center",
+                padding: "0 1.5rem",
             }}>
-                <button
-                    className="btn btn-primary"
-                    style={{ height: 56, fontSize: '1rem' }}
-                    onClick={handleAction}
-                >
-                    {status === "pickup" ? "Slide to Pick Up" : "Slide to Complete"}
-                    <CheckCircle size={20} />
-                </button>
+                <div style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 12,
+                    background: "#1F2937",
+                    borderRadius: 16,
+                    padding: "0.75rem 1.25rem",
+                }}>
+                    <span style={{ color: "white", fontSize: "0.875rem", fontWeight: 500 }}>Contact support</span>
+                    <button style={{
+                        width: 36,
+                        height: 36,
+                        borderRadius: "50%",
+                        background: "rgba(255,255,255,0.1)",
+                        border: "none",
+                        cursor: "pointer",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                    }}>
+                        <MessageSquare size={18} color="white" />
+                    </button>
+                    <button style={{
+                        width: 36,
+                        height: 36,
+                        borderRadius: "50%",
+                        background: "rgba(255,255,255,0.1)",
+                        border: "none",
+                        cursor: "pointer",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                    }}>
+                        <Phone size={18} color="white" />
+                    </button>
+                </div>
             </div>
         </div>
     );

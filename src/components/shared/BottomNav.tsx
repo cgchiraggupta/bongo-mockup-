@@ -2,126 +2,127 @@
 
 import React from "react";
 import { useMode } from "@/context/ModeContext";
-import { useAuth } from "@/context/AuthContext";
 import { useRouter, usePathname } from "next/navigation";
-import { Home, MapPin, Clock, User } from "lucide-react";
+
+// SVG icons inline to avoid any import issues
+const HomeIcon = ({ color }: { color: string }) => (
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
+        <polyline points="9 22 9 12 15 12 15 22" />
+    </svg>
+);
+
+const MapPinIcon = ({ color }: { color: string }) => (
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" />
+        <circle cx="12" cy="10" r="3" />
+    </svg>
+);
+
+const ClockIcon = ({ color }: { color: string }) => (
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <circle cx="12" cy="12" r="10" />
+        <polyline points="12 6 12 12 16 14" />
+    </svg>
+);
+
+const UserIcon = ({ color }: { color: string }) => (
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+        <circle cx="12" cy="7" r="4" />
+    </svg>
+);
 
 export default function BottomNav() {
     const { mode } = useMode();
-    const { profile, user } = useAuth();
     const router = useRouter();
     const pathname = usePathname();
 
     const navItems = [
-        { icon: Home, label: "Home", path: "/" },
-        { icon: MapPin, label: "Track", path: "/track" },
-        { icon: Clock, label: "History", path: "/history" },
-        { icon: User, label: "Profile", path: "/profile" },
+        { Icon: HomeIcon, label: "Home", path: "/" },
+        { Icon: MapPinIcon, label: "Track", path: "/track" },
+        { Icon: ClockIcon, label: "History", path: "/history" },
+        { Icon: UserIcon, label: "Profile", path: "/profile" },
     ];
 
     const handleNavClick = (path: string) => {
         router.push(path);
     };
 
-    return (
-        <>
-            <style jsx global>{`
-        .bottom-nav {
-          position: fixed;
-          bottom: 0;
-          left: 50%;
-          transform: translateX(-50%);
-          width: 100%;
-          padding: 0.5rem 0.75rem;
-          padding-bottom: max(0.5rem, env(safe-area-inset-bottom));
-          background: #1F2937;
-          z-index: 100;
-        }
-        
-        /* Mobile */
-        @media (max-width: 767px) {
-          .bottom-nav {
-            border-radius: 0;
-            left: 0;
-            transform: none;
-            max-width: 100%;
-          }
-        }
-        
-        /* Tablet */
-        @media (min-width: 768px) and (max-width: 1023px) {
-          .bottom-nav {
-            max-width: 600px;
-            border-top-left-radius: 24px;
-            border-top-right-radius: 24px;
-          }
-        }
-        
-        /* Desktop */
-        @media (min-width: 1024px) {
-          .bottom-nav {
-            max-width: 430px;
-            border-radius: 0 0 32px 32px;
-            bottom: 1.5rem;
-          }
-        }
-      `}</style>
+    const activeColor = mode === "customer" ? "#E16595" : "#10B981";
 
-            <nav className="bottom-nav">
-                <div style={{
+    return (
+        <nav
+            style={{
+                position: "fixed",
+                bottom: 0,
+                left: 0,
+                right: 0,
+                width: "100%",
+                padding: "8px 12px",
+                paddingBottom: "max(8px, env(safe-area-inset-bottom))",
+                background: "#1F2937",
+                zIndex: 9999,
+                borderTopLeftRadius: 20,
+                borderTopRightRadius: 20,
+            }}
+        >
+            <div
+                style={{
                     display: "flex",
                     justifyContent: "space-around",
                     alignItems: "center",
-                }}>
-                    {navItems.map((item, index) => {
-                        const Icon = item.icon;
-                        const isActive = pathname === item.path || (item.path === "/" && pathname === "/");
+                    maxWidth: 500,
+                    margin: "0 auto",
+                }}
+            >
+                {navItems.map((item, index) => {
+                    const isActive = pathname === item.path;
+                    const iconColor = isActive ? "white" : "#9CA3AF";
 
-                        return (
-                            <button
-                                key={index}
-                                onClick={() => handleNavClick(item.path)}
+                    return (
+                        <button
+                            key={index}
+                            onClick={() => handleNavClick(item.path)}
+                            style={{
+                                display: "flex",
+                                flexDirection: "column",
+                                alignItems: "center",
+                                gap: 4,
+                                background: "none",
+                                border: "none",
+                                cursor: "pointer",
+                                padding: "6px 16px",
+                                minWidth: 60,
+                                minHeight: 50,
+                            }}
+                        >
+                            <div
                                 style={{
-                                    display: "flex",
-                                    flexDirection: "column",
-                                    alignItems: "center",
-                                    gap: 2,
-                                    background: "none",
-                                    border: "none",
-                                    cursor: "pointer",
-                                    padding: "0.375rem 0.75rem",
+                                    width: 40,
+                                    height: 40,
                                     borderRadius: 12,
-                                    transition: "all 0.2s",
-                                }}
-                            >
-                                <div style={{
-                                    width: 36,
-                                    height: 36,
-                                    borderRadius: 10,
                                     display: "flex",
                                     alignItems: "center",
                                     justifyContent: "center",
-                                    background: isActive
-                                        ? (mode === "customer" ? "var(--color-primary)" : "#10B981")
-                                        : "transparent",
-                                }}>
-                                    <Icon
-                                        size={20}
-                                        color={isActive ? "white" : "#9CA3AF"}
-                                    />
-                                </div>
-                                <span style={{
-                                    fontSize: "0.5625rem",
-                                    fontWeight: isActive ? 600 : 500,
+                                    background: isActive ? activeColor : "transparent",
+                                }}
+                            >
+                                <item.Icon color={iconColor} />
+                            </div>
+                            <span
+                                style={{
+                                    fontSize: 10,
+                                    fontWeight: isActive ? 600 : 400,
                                     color: isActive ? "white" : "#9CA3AF",
-                                }}>
-                                    {item.label}
-                                </span>
-                            </button>
-                        );
-                    })}
-                </div>
-            </nav>
-        </>
+                                }}
+                            >
+                                {item.label}
+                            </span>
+                        </button>
+                    );
+                })}
+            </div>
+        </nav>
     );
 }

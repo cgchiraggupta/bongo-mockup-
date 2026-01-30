@@ -2,70 +2,121 @@
 
 import React, { useState, useEffect } from "react";
 import BottomNav from "@/components/shared/BottomNav";
+import { useGeolocation, DEFAULT_LOCATION } from "@/hooks/useGeolocation";
+import { supabase } from "@/lib/supabase";
+import { useAuth } from "@/context/AuthContext";
 
-// Simulated delivery tracking data
-const MOCK_DELIVERY = {
-    id: "CB1AD25",
-    status: "in_transit",
-    driver: {
-        name: "John D.",
-        phone: "+1 (555) 123-4567",
-        vehicle: "White Toyota Prius",
-        rating: 4.9,
-    },
-    pickup: {
-        address: "123 Main St, Miami",
-        lat: 25.7617,
-        lng: -80.1918,
-    },
-    dropoff: {
-        address: "2210 Coral Way, Apt 3C",
-        lat: 25.7489,
-        lng: -80.2372,
-    },
-    currentLocation: {
-        lat: 25.7550,
-        lng: -80.2100,
-    },
-    eta: "12 min",
-    distance: "2.3 mi",
-};
+interface Booking {
+    id: string;
+    status: string;
+    pickup_address: string;
+    dropoff_address: string;
+    pickup_lat: number;
+    pickup_lng: number;
+    dropoff_lat: number;
+    dropoff_lng: number;
+    driver_id: string | null;
+}
 
 export default function TrackPage() {
-    const [activeDelivery, setActiveDelivery] = useState(MOCK_DELIVERY);
+    const { user } = useAuth();
+    const { latitude, longitude, loading: locationLoading, error: locationError } = useGeolocation({ watch: true });
+    const [activeBooking, setActiveBooking] = useState<Booking | null>(null);
+    const [driverLocation, setDriverLocation] = useState<{ lat: number; lng: number } | null>(null);
 
-    // Simulate driver movement
+    // Use real location or fallback
+    const userLat = latitude || DEFAULT_LOCATION.lat;
+    const userLng = longitude || DEFAULT_LOCATION.lng;
+
+    // Fetch active booking
     useEffect(() => {
-        const interval = setInterval(() => {
-            setActiveDelivery((prev) => ({
-                ...prev,
-                currentLocation: {
-                    lat: prev.currentLocation.lat - 0.0001,
-                    lng: prev.currentLocation.lng - 0.0002,
-                },
-            }));
-        }, 3000);
+        if (!user) return;
 
-        return () => clearInterval(interval);
-    }, []);
+        const fetchActiveBooking = async () => {
+            const { data } = await supabase
+                .from("bookings")
+                .select("*")
+                .eq("customer_id", user.id)
+                .in("status", ["accepted", "picked_up", "in_transit"])
+                .order("created_at", { ascending: false })
+                .limit(1)
+                .single();
+
+            if (data) {
+                setActiveBooking(data);
+            }
+        };
+
+        fetchActiveBooking();
+
+        // Subscribe to booking updates
+        const channel = supabase
+            .channel("booking-updates")
+            .on(
+                "postgres_changes",
+                {
+                    event: "UPDATE",
+                    schema: "public",
+                    table: "bookings",
+                    filter: `customer_id=eq.${user.id}`,
+                },
+                (payload) => {
+                    setActiveBooking(payload.new as Booking);
+                }
+            )
+            .subscribe();
+
+        return () => {
+            supabase.removeChannel(channel);
+        };
+    }, [user]);
+
+    // Subscribe to driver location updates
+    useEffect(() => {
+        if (!activeBooking?.driver_id) return;
+
+        const channel = supabase
+            .channel("driver-location")
+            .on(
+                "postgres_changes",
+                {
+                    event: "*",
+                    schema: "public",
+                    table: "driver_locations",
+                    filter: `driver_id=eq.${activeBooking.driver_id}`,
+                },
+                (payload) => {
+                    const loc = payload.new as { lat: number; lng: number };
+                    setDriverLocation({ lat: loc.lat, lng: loc.lng });
+                }
+            )
+            .subscribe();
+
+        return () => {
+            supabase.removeChannel(channel);
+        };
+    }, [activeBooking?.driver_id]);
+
+    // Map center - use driver location if available, else user location
+    const mapLat = driverLocation?.lat || userLat;
+    const mapLng = driverLocation?.lng || userLng;
 
     return (
         <div style={{ height: "100vh", display: "flex", flexDirection: "column" }}>
             {/* Map Container */}
             <div style={{ flex: 1, position: "relative", minHeight: 0 }}>
-                {/* OpenStreetMap iframe - works without API key */}
+                {/* OpenStreetMap iframe with real location */}
                 <iframe
                     title="Delivery Map"
                     width="100%"
                     height="100%"
                     style={{ border: 0, position: "absolute", inset: 0 }}
-                    src={`https://www.openstreetmap.org/export/embed.html?bbox=${activeDelivery.currentLocation.lng - 0.03
-                        },${activeDelivery.currentLocation.lat - 0.02},${activeDelivery.currentLocation.lng + 0.03
-                        },${activeDelivery.currentLocation.lat + 0.02}&layer=mapnik&marker=${activeDelivery.currentLocation.lat
-                        },${activeDelivery.currentLocation.lng}`}
+                    src={`https://www.openstreetmap.org/export/embed.html?bbox=${mapLng - 0.02
+                        },${mapLat - 0.015},${mapLng + 0.02},${mapLat + 0.015
+                        }&layer=mapnik&marker=${mapLat},${mapLng}`}
                 />
 
-                {/* ETA Header */}
+                {/* Location Status */}
                 <div
                     style={{
                         position: "absolute",
@@ -74,8 +125,9 @@ export default function TrackPage() {
                         right: 16,
                         display: "flex",
                         justifyContent: "space-between",
-                        alignItems: "center",
+                        alignItems: "flex-start",
                         zIndex: 10,
+                        gap: 8,
                     }}
                 >
                     <div
@@ -84,37 +136,38 @@ export default function TrackPage() {
                             borderRadius: 16,
                             padding: "12px 16px",
                             boxShadow: "0 4px 12px rgba(0,0,0,0.15)",
-                            display: "flex",
-                            alignItems: "center",
-                            gap: 8,
+                            maxWidth: "70%",
                         }}
                     >
-                        <span style={{ fontSize: 20 }}>📍</span>
-                        <div>
-                            <div style={{ fontSize: 18, fontWeight: 700 }}>
-                                {activeDelivery.distance}
-                            </div>
-                            <div style={{ fontSize: 11, color: "#6B7280" }}>
-                                {activeDelivery.dropoff.address}
-                            </div>
-                        </div>
+                        {locationLoading ? (
+                            <div style={{ fontSize: 12, color: "#6B7280" }}>📍 Getting your location...</div>
+                        ) : locationError ? (
+                            <div style={{ fontSize: 12, color: "#EF4444" }}>⚠️ {locationError}</div>
+                        ) : (
+                            <>
+                                <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 4 }}>📍 Your Location</div>
+                                <div style={{ fontSize: 11, color: "#6B7280" }}>
+                                    {latitude?.toFixed(4)}, {longitude?.toFixed(4)}
+                                </div>
+                            </>
+                        )}
                     </div>
 
-                    <button
-                        style={{
-                            background: "#1F2937",
-                            color: "white",
-                            border: "none",
-                            borderRadius: 20,
-                            padding: "10px 16px",
-                            fontSize: 12,
-                            fontWeight: 600,
-                            cursor: "pointer",
-                            boxShadow: "0 4px 12px rgba(0,0,0,0.15)",
-                        }}
-                    >
-                        Pause shift
-                    </button>
+                    {activeBooking && (
+                        <div
+                            style={{
+                                background: "#10B981",
+                                color: "white",
+                                borderRadius: 20,
+                                padding: "8px 14px",
+                                fontSize: 11,
+                                fontWeight: 600,
+                                boxShadow: "0 4px 12px rgba(0,0,0,0.15)",
+                            }}
+                        >
+                            {activeBooking.status.replace("_", " ").toUpperCase()}
+                        </div>
+                    )}
                 </div>
             </div>
 
@@ -129,106 +182,66 @@ export default function TrackPage() {
                     boxShadow: "0 -4px 20px rgba(0,0,0,0.1)",
                 }}
             >
-                {/* Driver Info */}
-                <div
-                    style={{
-                        display: "flex",
-                        alignItems: "center",
-                        gap: 12,
-                        marginBottom: 20,
-                    }}
-                >
-                    <div
-                        style={{
-                            width: 48,
-                            height: 48,
-                            borderRadius: "50%",
-                            background: "linear-gradient(135deg, #E16595, #F472B6)",
-                            display: "flex",
-                            alignItems: "center",
-                            justifyContent: "center",
-                            color: "white",
-                            fontWeight: 700,
-                            fontSize: 18,
-                        }}
-                    >
-                        {activeDelivery.driver.name[0]}
-                    </div>
-                    <div style={{ flex: 1 }}>
-                        <div style={{ fontWeight: 700, fontSize: 16 }}>
-                            {activeDelivery.driver.name}
+                {activeBooking ? (
+                    <>
+                        {/* Active Booking Info */}
+                        <div style={{ marginBottom: 16 }}>
+                            <div style={{ fontSize: 11, color: "#6B7280", marginBottom: 4 }}>TRACKING</div>
+                            <div style={{ fontSize: 18, fontWeight: 700 }}>#{activeBooking.id.slice(0, 8).toUpperCase()}</div>
                         </div>
-                        <div style={{ fontSize: 12, color: "#6B7280" }}>
-                            {activeDelivery.driver.vehicle} • ⭐ {activeDelivery.driver.rating}
-                        </div>
-                    </div>
-                    <button
-                        style={{
-                            width: 44,
-                            height: 44,
-                            borderRadius: 12,
-                            background: "#ECFDF5",
-                            border: "none",
-                            cursor: "pointer",
-                            fontSize: 18,
-                        }}
-                    >
-                        📞
-                    </button>
-                    <button
-                        style={{
-                            width: 44,
-                            height: 44,
-                            borderRadius: 12,
-                            background: "#EFF6FF",
-                            border: "none",
-                            cursor: "pointer",
-                            fontSize: 18,
-                        }}
-                    >
-                        💬
-                    </button>
-                </div>
 
-                {/* Stats Row */}
-                <div
-                    style={{
-                        display: "flex",
-                        justifyContent: "space-around",
-                        padding: "16px",
-                        background: "#F9FAFB",
-                        borderRadius: 16,
-                    }}
-                >
-                    <div style={{ textAlign: "center" }}>
-                        <div style={{ fontSize: 11, color: "#6B7280", marginBottom: 4 }}>
-                            Distance
+                        {/* Route Info */}
+                        <div
+                            style={{
+                                display: "flex",
+                                flexDirection: "column",
+                                gap: 12,
+                                padding: 16,
+                                background: "#F9FAFB",
+                                borderRadius: 16,
+                            }}
+                        >
+                            <div style={{ display: "flex", gap: 12, alignItems: "flex-start" }}>
+                                <div style={{ fontSize: 16 }}>📦</div>
+                                <div>
+                                    <div style={{ fontSize: 11, color: "#6B7280" }}>Pickup</div>
+                                    <div style={{ fontSize: 13, fontWeight: 500 }}>{activeBooking.pickup_address}</div>
+                                </div>
+                            </div>
+                            <div style={{ width: 1, height: 20, background: "#E5E7EB", marginLeft: 7 }} />
+                            <div style={{ display: "flex", gap: 12, alignItems: "flex-start" }}>
+                                <div style={{ fontSize: 16 }}>📍</div>
+                                <div>
+                                    <div style={{ fontSize: 11, color: "#6B7280" }}>Dropoff</div>
+                                    <div style={{ fontSize: 13, fontWeight: 500 }}>{activeBooking.dropoff_address}</div>
+                                </div>
+                            </div>
                         </div>
-                        <div style={{ fontSize: 18, fontWeight: 700 }}>
-                            {activeDelivery.distance}
+                    </>
+                ) : (
+                    /* No Active Booking */
+                    <div style={{ textAlign: "center", padding: "2rem 1rem" }}>
+                        <div
+                            style={{
+                                width: 64,
+                                height: 64,
+                                borderRadius: "50%",
+                                background: "#F3F4F6",
+                                display: "flex",
+                                alignItems: "center",
+                                justifyContent: "center",
+                                margin: "0 auto 1rem",
+                                fontSize: 28,
+                            }}
+                        >
+                            📦
                         </div>
+                        <h2 style={{ fontSize: 16, fontWeight: 600, marginBottom: 8 }}>No Active Delivery</h2>
+                        <p style={{ fontSize: 13, color: "#6B7280" }}>
+                            Create a new delivery to start tracking your package in real-time.
+                        </p>
                     </div>
-                    <div
-                        style={{ width: 1, background: "#E5E7EB", alignSelf: "stretch" }}
-                    />
-                    <div style={{ textAlign: "center" }}>
-                        <div style={{ fontSize: 11, color: "#6B7280", marginBottom: 4 }}>
-                            Time
-                        </div>
-                        <div style={{ fontSize: 18, fontWeight: 700 }}>
-                            {activeDelivery.eta}
-                        </div>
-                    </div>
-                    <div
-                        style={{ width: 1, background: "#E5E7EB", alignSelf: "stretch" }}
-                    />
-                    <div style={{ textAlign: "center" }}>
-                        <div style={{ fontSize: 11, color: "#6B7280", marginBottom: 4 }}>
-                            Arrival
-                        </div>
-                        <div style={{ fontSize: 18, fontWeight: 700 }}>12:05 PM</div>
-                    </div>
-                </div>
+                )}
             </div>
 
             <BottomNav />

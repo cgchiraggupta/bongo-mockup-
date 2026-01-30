@@ -142,7 +142,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     // Sign out
     const signOut = async () => {
-        await supabase.auth.signOut();
+        try {
+            await supabase.auth.signOut();
+        } catch (error) {
+            console.log("Sign out error (will clear local state anyway):", error);
+        }
+        // Always clear local state, even if API fails
         setUser(null);
         setProfile(null);
         setSession(null);

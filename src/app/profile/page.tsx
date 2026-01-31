@@ -270,10 +270,13 @@ export default function ProfilePage() {
                                     Full Name
                                 </label>
                                 <input
+                                    id="fullName"
+                                    name="fullName"
                                     type="text"
                                     value={editName}
                                     onChange={(e) => setEditName(e.target.value)}
                                     placeholder="Enter your name"
+                                    autoComplete="name"
                                     style={{
                                         width: "100%",
                                         padding: "12px 16px",
@@ -290,10 +293,13 @@ export default function ProfilePage() {
                                     Phone Number
                                 </label>
                                 <input
+                                    id="phone"
+                                    name="phone"
                                     type="tel"
                                     value={editPhone}
                                     onChange={(e) => setEditPhone(e.target.value)}
                                     placeholder="Enter your phone number"
+                                    autoComplete="tel"
                                     style={{
                                         width: "100%",
                                         padding: "12px 16px",
@@ -310,9 +316,12 @@ export default function ProfilePage() {
                                     Email
                                 </label>
                                 <input
+                                    id="email"
+                                    name="email"
                                     type="email"
                                     value={email}
                                     disabled
+                                    autoComplete="email"
                                     style={{
                                         width: "100%",
                                         padding: "12px 16px",

@@ -5,7 +5,6 @@ import { useAuth } from "@/context/AuthContext";
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
 import ModeSwitcher from "@/components/shared/ModeSwitcher";
-import BottomNav from "@/components/shared/BottomNav";
 import CustomerDashboard from "@/components/customer/CustomerDashboard";
 import DriverDashboard from "@/components/driver/Dashboard";
 
@@ -62,7 +61,7 @@ export default function Home() {
             {/* Mode Switcher */}
             <ModeSwitcher />
 
-            {/* Main Content Area */}
+            {/* Main Content Area - BottomNav is included in each dashboard */}
             <div>
                 {mode === "customer" ? (
                     <CustomerDashboard />
@@ -70,9 +69,6 @@ export default function Home() {
                     <DriverDashboard />
                 )}
             </div>
-
-            {/* Navigation */}
-            <BottomNav />
         </main>
     );
 }

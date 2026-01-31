@@ -4,6 +4,7 @@ import React, { useState } from "react";
 import { DollarSign, Power, Star } from "lucide-react";
 import JobBoard from "./JobBoard";
 import ActiveJob from "./ActiveJob";
+import BottomNav from "@/components/shared/BottomNav";
 
 export default function DriverDashboard() {
     const [isOnline, setIsOnline] = useState(false);
@@ -16,7 +17,7 @@ export default function DriverDashboard() {
     }
 
     return (
-        <div className="animate-enter" style={{ padding: '1.5rem' }}>
+        <div className="animate-enter" style={{ padding: '1.5rem', paddingBottom: 100 }}>
             {/* Earnings Overview */}
             <div style={{
                 background: '#111827',
@@ -88,6 +89,8 @@ export default function DriverDashboard() {
                     <p style={{ fontSize: '0.875rem', color: '#9CA3AF' }}>Go online to start receiving delivery requests.</p>
                 </div>
             )}
+
+            <BottomNav />
         </div>
     );
 }

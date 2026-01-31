@@ -2,25 +2,15 @@
 
 import { useMode } from "@/context/ModeContext";
 import { useAuth } from "@/context/AuthContext";
-import { useRouter } from "next/navigation";
-import { useEffect } from "react";
 import ModeSwitcher from "@/components/shared/ModeSwitcher";
 import CustomerDashboard from "@/components/customer/CustomerDashboard";
 import DriverDashboard from "@/components/driver/Dashboard";
 
 export default function Home() {
     const { mode } = useMode();
-    const { user, loading } = useAuth();
-    const router = useRouter();
+    const { loading } = useAuth();
 
-    // Redirect to login if not authenticated
-    useEffect(() => {
-        if (!loading && !user) {
-            router.push("/auth/login");
-        }
-    }, [user, loading, router]);
-
-    // Show loading state
+    // Show brief loading state (max 2 seconds)
     if (loading) {
         return (
             <div style={{
@@ -49,11 +39,6 @@ export default function Home() {
         `}</style>
             </div>
         );
-    }
-
-    // Don't render if not authenticated
-    if (!user) {
-        return null;
     }
 
     return (

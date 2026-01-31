@@ -28,9 +28,9 @@ export default function ProfilePage() {
         setEditPhone(profile?.phone || "");
     }, [profile, user]);
 
-    const displayName = profile?.full_name || user?.user_metadata?.full_name || "User";
-    const email = user?.email || "No email";
-    const initial = (displayName[0] || "U").toUpperCase();
+    const displayName = profile?.full_name || user?.user_metadata?.full_name || "chirag";
+    const email = user?.email || "chiraggupta0999@gmail.com";
+    const initial = (displayName[0] || "C").toUpperCase();
 
     const handleRoleChange = async (role: "customer" | "driver" | "both") => {
         if (role === currentRole) return;
@@ -68,9 +68,7 @@ export default function ProfilePage() {
         alert(`${feature} - Coming Soon! 🚀`);
     };
 
-    if (!user) {
-        return null;
-    }
+    // Demo mode: show profile even without login
 
     return (
         <div className="responsive-page" style={{ padding: "1.25rem", paddingBottom: 100 }}>

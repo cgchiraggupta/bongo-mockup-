@@ -52,77 +52,83 @@ export default function BottomNav() {
     const activeColor = mode === "customer" ? "#E16595" : "#10B981";
 
     return (
-        <nav
-            style={{
-                position: "fixed",
-                bottom: 0,
-                left: 0,
-                right: 0,
-                width: "100%",
-                padding: "8px 12px",
-                paddingBottom: "max(8px, env(safe-area-inset-bottom))",
-                background: "#1F2937",
-                zIndex: 9999,
-                borderTopLeftRadius: 20,
-                borderTopRightRadius: 20,
-            }}
-        >
-            <div
+        <>
+            {/* Spacer to prevent content from being hidden behind fixed nav */}
+            <div style={{ height: 80 }} />
+
+            {/* Fixed bottom nav */}
+            <nav
                 style={{
-                    display: "flex",
-                    justifyContent: "space-around",
-                    alignItems: "center",
-                    maxWidth: 500,
-                    margin: "0 auto",
+                    position: "fixed",
+                    bottom: 0,
+                    left: "50%",
+                    transform: "translateX(-50%)",
+                    width: "100%",
+                    maxWidth: 430,
+                    padding: "8px 16px",
+                    paddingBottom: "max(12px, env(safe-area-inset-bottom))",
+                    background: "#1F2937",
+                    zIndex: 9999,
+                    borderTopLeftRadius: 24,
+                    borderTopRightRadius: 24,
+                    boxShadow: "0 -4px 20px rgba(0,0,0,0.15)",
                 }}
             >
-                {navItems.map((item, index) => {
-                    const isActive = pathname === item.path;
-                    const iconColor = isActive ? "white" : "#9CA3AF";
+                <div
+                    style={{
+                        display: "flex",
+                        justifyContent: "space-around",
+                        alignItems: "center",
+                    }}
+                >
+                    {navItems.map((item, index) => {
+                        const isActive = pathname === item.path;
+                        const iconColor = isActive ? "white" : "#9CA3AF";
 
-                    return (
-                        <button
-                            key={index}
-                            onClick={() => handleNavClick(item.path)}
-                            style={{
-                                display: "flex",
-                                flexDirection: "column",
-                                alignItems: "center",
-                                gap: 4,
-                                background: "none",
-                                border: "none",
-                                cursor: "pointer",
-                                padding: "6px 16px",
-                                minWidth: 60,
-                                minHeight: 50,
-                            }}
-                        >
-                            <div
+                        return (
+                            <button
+                                key={index}
+                                onClick={() => handleNavClick(item.path)}
                                 style={{
-                                    width: 40,
-                                    height: 40,
-                                    borderRadius: 12,
                                     display: "flex",
+                                    flexDirection: "column",
                                     alignItems: "center",
-                                    justifyContent: "center",
-                                    background: isActive ? activeColor : "transparent",
+                                    gap: 4,
+                                    background: "none",
+                                    border: "none",
+                                    cursor: "pointer",
+                                    padding: "8px 16px",
+                                    minWidth: 60,
                                 }}
                             >
-                                <item.Icon color={iconColor} />
-                            </div>
-                            <span
-                                style={{
-                                    fontSize: 10,
-                                    fontWeight: isActive ? 600 : 400,
-                                    color: isActive ? "white" : "#9CA3AF",
-                                }}
-                            >
-                                {item.label}
-                            </span>
-                        </button>
-                    );
-                })}
-            </div>
-        </nav>
+                                <div
+                                    style={{
+                                        width: 40,
+                                        height: 40,
+                                        borderRadius: 12,
+                                        display: "flex",
+                                        alignItems: "center",
+                                        justifyContent: "center",
+                                        background: isActive ? activeColor : "transparent",
+                                        transition: "background 0.2s",
+                                    }}
+                                >
+                                    <item.Icon color={iconColor} />
+                                </div>
+                                <span
+                                    style={{
+                                        fontSize: 11,
+                                        fontWeight: isActive ? 600 : 400,
+                                        color: isActive ? "white" : "#9CA3AF",
+                                    }}
+                                >
+                                    {item.label}
+                                </span>
+                            </button>
+                        );
+                    })}
+                </div>
+            </nav>
+        </>
     );
 }

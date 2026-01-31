@@ -1,61 +1,58 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
-import { useAuth } from "@/context/AuthContext";
-import { useRouter } from "next/navigation";
+import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabase";
+import { useAuth } from "@/context/AuthContext";
 import { useGeolocation } from "@/hooks/useGeolocation";
-import { Search, Package, Calculator, Receipt, Headphones, ChevronRight, Bell, Plus, X } from "lucide-react";
-import TrackingCard from "@/components/shared/TrackingCard";
 import BottomNav from "@/components/shared/BottomNav";
+import CreateBooking from "./CreateBooking";
+import {
+    Package,
+    Bell,
+    Search,
+    Plus,
+    Calculator,
+    Receipt,
+    Headphones,
+    MapPin,
+    ChevronRight,
+} from "lucide-react";
 
 interface Booking {
     id: string;
-    status: "pending" | "accepted" | "picked_up" | "in_transit" | "delivered" | "cancelled";
     pickup_address: string;
     dropoff_address: string;
+    status: string;
     created_at: string;
+    category?: string;
+    suggested_price?: number;
 }
 
 export default function CustomerDashboard() {
     const { user, profile } = useAuth();
-    const router = useRouter();
     const { latitude, longitude } = useGeolocation();
-    const [searchQuery, setSearchQuery] = useState("");
     const [bookings, setBookings] = useState<Booking[]>([]);
     const [showCreateModal, setShowCreateModal] = useState(false);
-    const [isCreating, setIsCreating] = useState(false);
-
-    // Booking form state
-    const [pickupAddress, setPickupAddress] = useState("");
-    const [dropoffAddress, setDropoffAddress] = useState("");
-    const [packageSize, setPackageSize] = useState("small");
-
-    const displayName = profile?.full_name || user?.user_metadata?.full_name || "User";
-    const initial = (displayName[0] || 'U').toUpperCase();
 
     // Fetch user's bookings
     useEffect(() => {
-        if (!user) return;
+        if (!user?.id) return;
 
         const fetchBookings = async () => {
             const { data } = await supabase
                 .from("bookings")
                 .select("*")
                 .eq("customer_id", user.id)
-                .order("created_at", { ascending: false })
-                .limit(10);
+                .order("created_at", { ascending: false });
 
-            if (data) {
-                setBookings(data);
-            }
+            if (data) setBookings(data);
         };
 
         fetchBookings();
 
-        // Subscribe to booking updates
+        // Subscribe to changes
         const channel = supabase
-            .channel("my-bookings")
+            .channel("customer-bookings")
             .on(
                 "postgres_changes",
                 {
@@ -64,434 +61,319 @@ export default function CustomerDashboard() {
                     table: "bookings",
                     filter: `customer_id=eq.${user.id}`,
                 },
-                () => {
-                    fetchBookings();
-                }
+                () => fetchBookings()
             )
             .subscribe();
 
         return () => {
             supabase.removeChannel(channel);
         };
-    }, [user]);
+    }, [user?.id]);
 
-    // Create new booking
-    const handleCreateBooking = async () => {
-        if (!user || !pickupAddress || !dropoffAddress) return;
+    const activeBookings = bookings.filter((b) =>
+        ["pending", "accepting_bids", "driver_assigned", "picked_up", "in_transit"].includes(b.status)
+    );
+    const historyBookings = bookings.filter((b) =>
+        ["delivered", "cancelled", "completed"].includes(b.status)
+    );
 
-        setIsCreating(true);
+    const services = [
+        { icon: Plus, label: "Create", action: () => setShowCreateModal(true), primary: true },
+        { icon: Calculator, label: "Calculate", action: () => { } },
+        { icon: Receipt, label: "Receipts", action: () => { } },
+        { icon: Headphones, label: "Support", action: () => { } },
+    ];
 
-        // Use current location or default
-        const pickupLat = latitude || 19.076;
-        const pickupLng = longitude || 72.8777;
-
-        // For demo, dropoff is slightly offset
-        const dropoffLat = pickupLat + 0.01;
-        const dropoffLng = pickupLng + 0.01;
-
-        const { error } = await supabase.from("bookings").insert({
-            customer_id: user.id,
-            pickup_address: pickupAddress,
-            pickup_lat: pickupLat,
-            pickup_lng: pickupLng,
-            dropoff_address: dropoffAddress,
-            dropoff_lat: dropoffLat,
-            dropoff_lng: dropoffLng,
-            package_size: packageSize,
-            status: "pending",
-        });
-
-        setIsCreating(false);
-
-        if (!error) {
-            setShowCreateModal(false);
-            setPickupAddress("");
-            setDropoffAddress("");
-            setPackageSize("small");
-        }
+    const getStatusColor = (status: string) => {
+        const colors: Record<string, string> = {
+            pending: "#F59E0B",
+            accepting_bids: "#8B5CF6",
+            driver_assigned: "#3B82F6",
+            picked_up: "#10B981",
+            in_transit: "#06B6D4",
+            delivered: "#22C55E",
+            cancelled: "#EF4444",
+        };
+        return colors[status] || "#6B7280";
     };
 
-    // Split bookings into active and history
-    const activeBookings = bookings.filter(b => ["pending", "accepted", "picked_up", "in_transit"].includes(b.status));
-    const historyBookings = bookings.filter(b => ["delivered", "cancelled"].includes(b.status));
-
-    // Color mapping for cards
-    const colors: Array<"pink" | "yellow" | "blue" | "green"> = ["pink", "yellow", "blue", "green"];
-
     return (
-        <div className="animate-enter" style={{ padding: "1.25rem", paddingBottom: 100 }}>
+        <div style={{ minHeight: "100vh", background: "#F3F4F6", paddingBottom: 100 }}>
             {/* Header */}
             <div style={{
+                background: "white",
+                padding: "20px 16px",
                 display: "flex",
+                justifyContent: "space-between",
                 alignItems: "center",
-                gap: 12,
-                marginBottom: "1.25rem",
             }}>
-                <button
-                    onClick={() => router.push("/profile")}
-                    style={{
+                <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                    <div style={{
                         width: 44,
                         height: 44,
                         borderRadius: "50%",
-                        background: "linear-gradient(135deg, var(--color-primary), #F472B6)",
-                        border: "none",
-                        cursor: "pointer",
+                        background: "#E16595",
                         display: "flex",
                         alignItems: "center",
                         justifyContent: "center",
                         color: "white",
                         fontWeight: 700,
-                        fontSize: "1rem",
-                        flexShrink: 0,
-                    }}
-                >
-                    {initial}
-                </button>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                    <h1 style={{
-                        fontSize: "1rem",
-                        fontWeight: 700,
-                        margin: 0,
-                        whiteSpace: "nowrap",
-                        overflow: "hidden",
-                        textOverflow: "ellipsis",
+                        fontSize: 18,
                     }}>
-                        {displayName}
-                    </h1>
-                    <p style={{
-                        fontSize: "0.6875rem",
-                        color: "var(--color-text-secondary)",
-                        margin: 0,
-                        display: "flex",
-                        alignItems: "center",
-                        gap: 4,
-                    }}>
-                        <span>📍</span>
-                        {latitude && longitude
-                            ? `${latitude.toFixed(4)}, ${longitude.toFixed(4)}`
-                            : "Getting location..."
-                        }
-                    </p>
+                        {profile?.full_name?.[0] || user?.email?.[0]?.toUpperCase() || "C"}
+                    </div>
+                    <div>
+                        <div style={{ fontWeight: 600, fontSize: 16 }}>
+                            {profile?.full_name || "chirag"}
+                        </div>
+                        <div style={{ fontSize: 12, color: "#6B7280", display: "flex", alignItems: "center", gap: 4 }}>
+                            <MapPin size={12} color="#E16595" />
+                            {latitude?.toFixed(4) || "28.6124"}, {longitude?.toFixed(4) || "77.0607"}
+                        </div>
+                    </div>
                 </div>
                 <button style={{
+                    background: "#F3F4F6",
+                    border: "none",
+                    borderRadius: 12,
                     width: 40,
                     height: 40,
-                    borderRadius: 12,
-                    background: "white",
-                    border: "1px solid var(--color-border)",
-                    cursor: "pointer",
                     display: "flex",
                     alignItems: "center",
                     justifyContent: "center",
-                    flexShrink: 0,
+                    cursor: "pointer",
                 }}>
-                    <Bell size={18} color="#6B7280" />
+                    <Bell size={20} color="#374151" />
                 </button>
             </div>
 
             {/* Search Bar */}
-            <div style={{ marginBottom: "1.25rem" }}>
+            <div style={{ padding: "12px 16px", background: "white" }}>
                 <div style={{
                     display: "flex",
                     alignItems: "center",
-                    gap: 10,
-                    background: "white",
-                    borderRadius: 14,
-                    padding: "0 14px",
-                    height: 48,
-                    border: "1px solid var(--color-border)",
+                    gap: 8,
+                    padding: "12px 16px",
+                    background: "#F3F4F6",
+                    borderRadius: 12,
                 }}>
                     <Search size={18} color="#9CA3AF" />
                     <input
-                        type="text"
                         placeholder="Track your shipment..."
-                        value={searchQuery}
-                        onChange={(e) => setSearchQuery(e.target.value)}
                         style={{
-                            flex: 1,
-                            background: "none",
                             border: "none",
+                            background: "transparent",
                             outline: "none",
-                            fontSize: "0.8125rem",
-                            fontFamily: "inherit",
-                            color: "var(--color-text-main)",
+                            width: "100%",
+                            fontSize: 14,
                         }}
                     />
                 </div>
             </div>
 
-            {/* Current Deliveries */}
-            <div style={{ marginBottom: "1.25rem" }}>
+            {/* Content */}
+            <div style={{ padding: 16 }}>
+                {/* Active Deliveries */}
                 <div style={{
-                    display: "flex",
-                    justifyContent: "space-between",
-                    alignItems: "center",
-                    marginBottom: "0.625rem",
+                    background: "white",
+                    borderRadius: 16,
+                    padding: 16,
+                    marginBottom: 16,
                 }}>
-                    <h2 style={{ fontSize: "0.9375rem", fontWeight: 700, margin: 0 }}>Current Deliveries</h2>
+                    <h3 style={{ margin: "0 0 12px", fontSize: 16, fontWeight: 600 }}>
+                        Current Deliveries
+                    </h3>
+                    {activeBookings.length === 0 ? (
+                        <div style={{
+                            textAlign: "center",
+                            padding: "20px",
+                            color: "#9CA3AF",
+                            fontSize: 14,
+                        }}>
+                            No active deliveries
+                        </div>
+                    ) : (
+                        activeBookings.slice(0, 3).map((booking) => (
+                            <div
+                                key={booking.id}
+                                style={{
+                                    display: "flex",
+                                    alignItems: "center",
+                                    gap: 12,
+                                    padding: "12px 0",
+                                    borderBottom: "1px solid #E5E7EB",
+                                }}
+                            >
+                                <div style={{
+                                    width: 40,
+                                    height: 40,
+                                    borderRadius: 10,
+                                    background: "#FDF2F8",
+                                    display: "flex",
+                                    alignItems: "center",
+                                    justifyContent: "center",
+                                }}>
+                                    <Package size={20} color="#E16595" />
+                                </div>
+                                <div style={{ flex: 1 }}>
+                                    <div style={{ fontSize: 14, fontWeight: 500 }}>
+                                        {booking.pickup_address?.slice(0, 25)}...
+                                    </div>
+                                    <div style={{ fontSize: 12, color: "#6B7280" }}>
+                                        →  {booking.dropoff_address?.slice(0, 20)}...
+                                    </div>
+                                </div>
+                                <div style={{
+                                    padding: "4px 8px",
+                                    borderRadius: 6,
+                                    background: getStatusColor(booking.status) + "20",
+                                    color: getStatusColor(booking.status),
+                                    fontSize: 11,
+                                    fontWeight: 600,
+                                    textTransform: "capitalize",
+                                }}>
+                                    {booking.status.replace(/_/g, " ")}
+                                </div>
+                            </div>
+                        ))
+                    )}
                 </div>
 
-                {activeBookings.length > 0 ? (
-                    <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-                        {activeBookings.map((b, i) => (
-                            <TrackingCard
-                                key={b.id}
-                                trackingId={b.id.slice(0, 8).toUpperCase()}
-                                status={b.status === "pending" ? "pending" : "in_delivery"}
-                                packageColor={colors[i % colors.length]}
-                                arrivalTime={new Date(b.created_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
-                                onClick={() => router.push("/track")}
-                            />
+                {/* Services Grid */}
+                <div style={{
+                    background: "white",
+                    borderRadius: 16,
+                    padding: 16,
+                    marginBottom: 16,
+                }}>
+                    <h3 style={{ margin: "0 0 12px", fontSize: 16, fontWeight: 600 }}>
+                        Services
+                    </h3>
+                    <div style={{
+                        display: "grid",
+                        gridTemplateColumns: "repeat(4, 1fr)",
+                        gap: 12,
+                    }}>
+                        {services.map((service, index) => (
+                            <button
+                                key={index}
+                                onClick={service.action}
+                                style={{
+                                    display: "flex",
+                                    flexDirection: "column",
+                                    alignItems: "center",
+                                    gap: 8,
+                                    padding: 12,
+                                    border: "none",
+                                    borderRadius: 12,
+                                    background: service.primary ? "#E16595" : "#F3F4F6",
+                                    cursor: "pointer",
+                                }}
+                            >
+                                <service.icon
+                                    size={22}
+                                    color={service.primary ? "white" : "#374151"}
+                                />
+                                <span style={{
+                                    fontSize: 11,
+                                    fontWeight: 500,
+                                    color: service.primary ? "white" : "#374151",
+                                }}>
+                                    {service.label}
+                                </span>
+                            </button>
                         ))}
                     </div>
-                ) : (
-                    <div style={{
-                        padding: "2rem",
-                        textAlign: "center",
-                        background: "white",
-                        borderRadius: 16,
-                        border: "1px solid var(--color-border)",
-                    }}>
-                        <p style={{ fontSize: 13, color: "#6B7280", margin: 0 }}>No active deliveries</p>
-                    </div>
-                )}
-            </div>
-
-            {/* Services Grid */}
-            <div style={{ marginBottom: "1.25rem" }}>
-                <h2 style={{ fontSize: "0.9375rem", fontWeight: 700, marginBottom: "0.625rem" }}>Services</h2>
-                <div style={{
-                    display: "grid",
-                    gridTemplateColumns: "repeat(4, 1fr)",
-                    gap: 10,
-                }}>
-                    <ServiceButton
-                        icon={<Plus size={22} />}
-                        label="Create"
-                        onClick={() => setShowCreateModal(true)}
-                        highlight
-                    />
-                    <ServiceButton icon={<Calculator size={22} />} label="Calculate" />
-                    <ServiceButton icon={<Receipt size={22} />} label="Receipts" />
-                    <ServiceButton icon={<Headphones size={22} />} label="Support" />
                 </div>
-            </div>
 
-            {/* Delivery History */}
-            <div>
+                {/* History */}
                 <div style={{
-                    display: "flex",
-                    justifyContent: "space-between",
-                    alignItems: "center",
-                    marginBottom: "0.625rem",
+                    background: "white",
+                    borderRadius: 16,
+                    padding: 16,
                 }}>
-                    <h2 style={{ fontSize: "0.9375rem", fontWeight: 700, margin: 0 }}>Delivery History</h2>
-                    <button
-                        onClick={() => router.push("/history")}
-                        style={{
+                    <div style={{
+                        display: "flex",
+                        justifyContent: "space-between",
+                        alignItems: "center",
+                        marginBottom: 12,
+                    }}>
+                        <h3 style={{ margin: 0, fontSize: 16, fontWeight: 600 }}>
+                            Delivery History
+                        </h3>
+                        <button style={{
                             background: "none",
                             border: "none",
-                            color: "var(--color-primary)",
-                            fontWeight: 600,
-                            fontSize: "0.6875rem",
+                            color: "#E16595",
+                            fontSize: 13,
+                            fontWeight: 500,
                             cursor: "pointer",
                             display: "flex",
                             alignItems: "center",
-                            gap: 2,
-                            padding: 0,
+                            gap: 4,
                         }}>
-                        See all <ChevronRight size={12} />
-                    </button>
+                            See all <ChevronRight size={14} />
+                        </button>
+                    </div>
+                    {historyBookings.length === 0 ? (
+                        <div style={{
+                            textAlign: "center",
+                            padding: "20px",
+                            color: "#9CA3AF",
+                            fontSize: 14,
+                        }}>
+                            No delivery history yet
+                        </div>
+                    ) : (
+                        historyBookings.slice(0, 3).map((booking) => (
+                            <div
+                                key={booking.id}
+                                style={{
+                                    display: "flex",
+                                    alignItems: "center",
+                                    gap: 12,
+                                    padding: "12px 0",
+                                    borderBottom: "1px solid #E5E7EB",
+                                }}
+                            >
+                                <div style={{
+                                    width: 40,
+                                    height: 40,
+                                    borderRadius: 10,
+                                    background: "#F3F4F6",
+                                    display: "flex",
+                                    alignItems: "center",
+                                    justifyContent: "center",
+                                }}>
+                                    <Package size={20} color="#6B7280" />
+                                </div>
+                                <div style={{ flex: 1 }}>
+                                    <div style={{ fontSize: 14, fontWeight: 500 }}>
+                                        {booking.dropoff_address?.slice(0, 25)}...
+                                    </div>
+                                    <div style={{ fontSize: 12, color: "#6B7280" }}>
+                                        {new Date(booking.created_at).toLocaleDateString()}
+                                    </div>
+                                </div>
+                                <div style={{
+                                    fontWeight: 600,
+                                    color: "#374151",
+                                }}>
+                                    ₹{booking.suggested_price || 0}
+                                </div>
+                            </div>
+                        ))
+                    )}
                 </div>
-
-                {historyBookings.length > 0 ? (
-                    <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-                        {historyBookings.slice(0, 2).map((b, i) => (
-                            <TrackingCard
-                                key={b.id}
-                                trackingId={b.id.slice(0, 8).toUpperCase()}
-                                status="delivered"
-                                packageColor={colors[(i + 2) % colors.length]}
-                                arrivalTime={new Date(b.created_at).toLocaleDateString()}
-                                variant="compact"
-                            />
-                        ))}
-                    </div>
-                ) : (
-                    <div style={{
-                        padding: "1.5rem",
-                        textAlign: "center",
-                        background: "white",
-                        borderRadius: 16,
-                        border: "1px solid var(--color-border)",
-                    }}>
-                        <p style={{ fontSize: 13, color: "#6B7280", margin: 0 }}>No delivery history yet</p>
-                    </div>
-                )}
             </div>
+
+            {/* Bottom Navigation */}
+            <BottomNav />
 
             {/* Create Booking Modal */}
             {showCreateModal && (
-                <div style={{
-                    position: "fixed",
-                    inset: 0,
-                    background: "rgba(0,0,0,0.5)",
-                    display: "flex",
-                    alignItems: "flex-end",
-                    justifyContent: "center",
-                    zIndex: 1000,
-                }}>
-                    <div style={{
-                        background: "white",
-                        borderTopLeftRadius: 24,
-                        borderTopRightRadius: 24,
-                        width: "100%",
-                        maxWidth: 430,
-                        padding: "1.5rem",
-                        paddingBottom: "2rem",
-                    }}>
-                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1.5rem" }}>
-                            <h2 style={{ fontSize: 18, fontWeight: 700, margin: 0 }}>New Delivery</h2>
-                            <button
-                                onClick={() => setShowCreateModal(false)}
-                                style={{ background: "none", border: "none", cursor: "pointer", padding: 8 }}
-                            >
-                                <X size={24} color="#6B7280" />
-                            </button>
-                        </div>
-
-                        <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-                            <div>
-                                <label style={{ fontSize: 12, fontWeight: 600, color: "#374151", display: "block", marginBottom: 6 }}>
-                                    Pickup Address
-                                </label>
-                                <input
-                                    type="text"
-                                    value={pickupAddress}
-                                    onChange={(e) => setPickupAddress(e.target.value)}
-                                    placeholder="Enter pickup location"
-                                    style={{
-                                        width: "100%",
-                                        padding: "12px 16px",
-                                        border: "1px solid var(--color-border)",
-                                        borderRadius: 12,
-                                        fontSize: 14,
-                                        fontFamily: "inherit",
-                                    }}
-                                />
-                            </div>
-
-                            <div>
-                                <label style={{ fontSize: 12, fontWeight: 600, color: "#374151", display: "block", marginBottom: 6 }}>
-                                    Dropoff Address
-                                </label>
-                                <input
-                                    type="text"
-                                    value={dropoffAddress}
-                                    onChange={(e) => setDropoffAddress(e.target.value)}
-                                    placeholder="Enter delivery destination"
-                                    style={{
-                                        width: "100%",
-                                        padding: "12px 16px",
-                                        border: "1px solid var(--color-border)",
-                                        borderRadius: 12,
-                                        fontSize: 14,
-                                        fontFamily: "inherit",
-                                    }}
-                                />
-                            </div>
-
-                            <div>
-                                <label style={{ fontSize: 12, fontWeight: 600, color: "#374151", display: "block", marginBottom: 6 }}>
-                                    Package Size
-                                </label>
-                                <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 8 }}>
-                                    {["small", "medium", "large", "extra_large"].map((size) => (
-                                        <button
-                                            key={size}
-                                            onClick={() => setPackageSize(size)}
-                                            style={{
-                                                padding: "10px",
-                                                border: packageSize === size ? "2px solid var(--color-primary)" : "1px solid var(--color-border)",
-                                                borderRadius: 10,
-                                                background: packageSize === size ? "#FFF5F9" : "white",
-                                                fontSize: 11,
-                                                fontWeight: 500,
-                                                cursor: "pointer",
-                                                textTransform: "capitalize",
-                                            }}
-                                        >
-                                            {size.replace("_", " ")}
-                                        </button>
-                                    ))}
-                                </div>
-                            </div>
-
-                            <button
-                                onClick={handleCreateBooking}
-                                disabled={isCreating || !pickupAddress || !dropoffAddress}
-                                style={{
-                                    width: "100%",
-                                    padding: "14px",
-                                    background: !pickupAddress || !dropoffAddress ? "#E5E7EB" : "var(--color-primary)",
-                                    color: !pickupAddress || !dropoffAddress ? "#9CA3AF" : "white",
-                                    border: "none",
-                                    borderRadius: 14,
-                                    fontSize: 14,
-                                    fontWeight: 600,
-                                    cursor: !pickupAddress || !dropoffAddress ? "not-allowed" : "pointer",
-                                    marginTop: 8,
-                                }}
-                            >
-                                {isCreating ? "Creating..." : "Create Delivery"}
-                            </button>
-                        </div>
-                    </div>
-                </div>
+                <CreateBooking onClose={() => setShowCreateModal(false)} />
             )}
-
-            <BottomNav />
         </div>
-    );
-}
-
-function ServiceButton({
-    icon,
-    label,
-    onClick,
-    highlight
-}: {
-    icon: React.ReactNode;
-    label: string;
-    onClick?: () => void;
-    highlight?: boolean;
-}) {
-    return (
-        <button
-            onClick={onClick}
-            style={{
-                display: "flex",
-                flexDirection: "column",
-                alignItems: "center",
-                justifyContent: "center",
-                gap: 6,
-                padding: "0.875rem 0.5rem",
-                background: highlight ? "var(--color-primary)" : "white",
-                border: highlight ? "none" : "1px solid var(--color-border)",
-                borderRadius: 14,
-                cursor: "pointer",
-                transition: "all 0.2s",
-                minHeight: 72,
-            }}
-        >
-            <div style={{ color: highlight ? "white" : "#374151" }}>{icon}</div>
-            <span style={{
-                fontSize: "0.6875rem",
-                fontWeight: 500,
-                color: highlight ? "white" : "#6B7280",
-            }}>
-                {label}
-            </span>
-        </button>
     );
 }

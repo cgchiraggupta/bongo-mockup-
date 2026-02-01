@@ -34,6 +34,55 @@ interface Job {
 
 type SortOption = "newest" | "highest_price" | "lowest_competition";
 
+// Demo jobs for testing when database is empty
+const DEMO_JOBS: Job[] = [
+    {
+        id: "demo-1",
+        category: "furniture",
+        item_description: "3-seater sofa + coffee table, need help with loading",
+        pickup_address: "Sector 62, Noida, UP 201301",
+        dropoff_address: "Connaught Place, New Delhi 110001",
+        suggested_price: 850,
+        help_with_loading: true,
+        floor_pickup: 3,
+        floor_dropoff: 0,
+        bidding_ends_at: new Date(Date.now() + 15 * 60000).toISOString(),
+        created_at: new Date().toISOString(),
+        bid_count: 3,
+        lowest_bid: 750,
+    },
+    {
+        id: "demo-2",
+        category: "appliances",
+        item_description: "Samsung refrigerator 650L, double door",
+        pickup_address: "Lajpat Nagar, New Delhi 110024",
+        dropoff_address: "Greater Noida West, UP 201306",
+        suggested_price: 1200,
+        help_with_loading: true,
+        floor_pickup: 2,
+        floor_dropoff: 5,
+        bidding_ends_at: new Date(Date.now() + 25 * 60000).toISOString(),
+        created_at: new Date(Date.now() - 5 * 60000).toISOString(),
+        bid_count: 1,
+        lowest_bid: 1100,
+    },
+    {
+        id: "demo-3",
+        category: "bulk_items",
+        item_description: "Office shifting - 15 boxes + 4 chairs",
+        pickup_address: "Cyber City, Gurugram, HR 122002",
+        dropoff_address: "Sector 18, Noida 201301",
+        suggested_price: 2500,
+        help_with_loading: true,
+        floor_pickup: 0,
+        floor_dropoff: 2,
+        bidding_ends_at: new Date(Date.now() + 45 * 60000).toISOString(),
+        created_at: new Date(Date.now() - 10 * 60000).toISOString(),
+        bid_count: 5,
+        lowest_bid: 2200,
+    },
+];
+
 export default function JobBoard() {
     const { user } = useAuth();
     const [jobs, setJobs] = useState<Job[]>([]);
@@ -80,9 +129,16 @@ export default function JobBoard() {
                 })
             );
 
-            setJobs(jobsWithBids);
+            // Use demo jobs if no real jobs found (for demo mode)
+            if (jobsWithBids.length === 0) {
+                setJobs(DEMO_JOBS);
+            } else {
+                setJobs(jobsWithBids);
+            }
         } catch (err) {
             console.error("Error fetching jobs:", err);
+            // On error (e.g., table doesn't exist), show demo jobs
+            setJobs(DEMO_JOBS);
         } finally {
             setLoading(false);
             setRefreshing(false);

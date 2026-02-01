@@ -9,21 +9,23 @@ export default function ModeSwitcher() {
     const { mode, setMode, toggleMode } = useMode();
     const { profile, user } = useAuth();
 
-    // Get user's role
-    const userRole = profile?.role || user?.user_metadata?.role || "customer";
+    // Get user's role - default to "both" in demo mode
+    const userRole = profile?.role || user?.user_metadata?.role || "both";
 
-    // Set mode based on user's role on mount
+    // Set mode based on user's role on mount (only for logged-in users with single role)
     useEffect(() => {
-        if (userRole === "customer") {
+        if (user && userRole === "customer") {
             setMode("customer");
-        } else if (userRole === "driver") {
+        } else if (user && userRole === "driver") {
             setMode("driver");
         }
-        // If 'both', keep the current mode or default
-    }, [userRole, setMode]);
+        // If 'both' or demo mode, keep the current mode
+    }, [userRole, setMode, user]);
 
-    // Only show mode switcher if user has "both" role
-    if (userRole !== "both") {
+    // Show mode switcher if user has "both" role OR is in demo mode (not logged in)
+    const showSwitcher = !user || userRole === "both";
+
+    if (!showSwitcher) {
         return null;
     }
 

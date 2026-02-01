@@ -73,9 +73,19 @@ export default function CustomerDashboard() {
     const activeBookings = bookings.filter((b) =>
         ["pending", "accepting_bids", "driver_assigned", "picked_up", "in_transit"].includes(b.status)
     );
-    const historyBookings = bookings.filter((b) =>
+
+    // Demo history for when user has no real bookings (matches /history page)
+    const DEMO_HISTORY: Booking[] = [
+        { id: "CA18WS8", pickup_address: "Sector 62, Noida", dropoff_address: "Connaught Place, Delhi", status: "delivered", created_at: new Date(Date.now() - 86400000).toISOString() },
+        { id: "F165G258", pickup_address: "Lajpat Nagar", dropoff_address: "Greater Noida", status: "delivered", created_at: new Date(Date.now() - 3 * 86400000).toISOString() },
+        { id: "X789K123", pickup_address: "Cyber City, Gurugram", dropoff_address: "Sector 18, Noida", status: "delivered", created_at: new Date(Date.now() - 4 * 86400000).toISOString() },
+    ];
+
+    const dbHistory = bookings.filter((b) =>
         ["delivered", "cancelled", "completed"].includes(b.status)
     );
+    // Use demo data if no database history
+    const historyBookings = dbHistory.length > 0 ? dbHistory : DEMO_HISTORY;
 
     const services = [
         { icon: Plus, label: "Create", action: () => setShowCreateModal(true), primary: true },

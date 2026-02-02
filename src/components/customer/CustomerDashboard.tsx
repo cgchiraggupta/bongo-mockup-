@@ -108,7 +108,7 @@ export default function CustomerDashboard() {
     };
 
     return (
-        <div style={{ minHeight: "100vh", background: "#F3F4F6", paddingBottom: 100 }}>
+        <div style={{ background: "#F3F4F6", paddingBottom: 100 }}>
             {/* Header */}
             <div style={{
                 background: "white",

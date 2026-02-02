@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from "next";
-import "../styles/globals.css";
+import "./globals.css";
 import { ModeProvider } from "@/context/ModeContext";
 import { AuthProvider } from "@/context/AuthContext";
 

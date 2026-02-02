@@ -89,9 +89,9 @@ export default function CustomerDashboard() {
 
     const services = [
         { icon: Plus, label: "Create", action: () => setShowCreateModal(true), primary: true },
-        { icon: Calculator, label: "Calculate", action: () => { } },
-        { icon: Receipt, label: "Receipts", action: () => { } },
-        { icon: Headphones, label: "Support", action: () => { } },
+        { icon: Calculator, label: "Calculate", action: () => alert("Price Calculator coming in Phase 4!") },
+        { icon: Receipt, label: "Receipts", action: () => alert("Receipt history coming soon!") },
+        { icon: Headphones, label: "Support", action: () => alert("Support chat coming soon!") },
     ];
 
     const getStatusColor = (status: string) => {

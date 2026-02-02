@@ -4,7 +4,7 @@ import { useMode } from "@/context/ModeContext";
 import { useAuth } from "@/context/AuthContext";
 import ModeSwitcher from "@/components/shared/ModeSwitcher";
 import CustomerDashboard from "@/components/customer/CustomerDashboard";
-import DriverDashboard from "@/components/driver/Dashboard";
+import DriverDashboard from "@/components/driver/DriverDashboard";
 
 export default function Home() {
     const { mode } = useMode();

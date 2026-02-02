@@ -12,7 +12,6 @@ import {
     Sofa,
     Refrigerator,
     Boxes,
-    ArrowUpDown,
     RefreshCw,
 } from "lucide-react";
 
@@ -24,8 +23,7 @@ interface Job {
     dropoff_address: string;
     suggested_price: number;
     help_with_loading: boolean;
-    floor_pickup: number;
-    floor_dropoff: number;
+    floor_number?: number; // Schema has floor_number, not floor_pickup/dropoff
     bidding_ends_at: string;
     created_at: string;
     bid_count?: number;
@@ -33,55 +31,6 @@ interface Job {
 }
 
 type SortOption = "newest" | "highest_price" | "lowest_competition";
-
-// Demo jobs for testing when database is empty
-const DEMO_JOBS: Job[] = [
-    {
-        id: "demo-1",
-        category: "furniture",
-        item_description: "3-seater sofa + coffee table, need help with loading",
-        pickup_address: "Sector 62, Noida, UP 201301",
-        dropoff_address: "Connaught Place, New Delhi 110001",
-        suggested_price: 850,
-        help_with_loading: true,
-        floor_pickup: 3,
-        floor_dropoff: 0,
-        bidding_ends_at: new Date(Date.now() + 15 * 60000).toISOString(),
-        created_at: new Date().toISOString(),
-        bid_count: 3,
-        lowest_bid: 750,
-    },
-    {
-        id: "demo-2",
-        category: "appliances",
-        item_description: "Samsung refrigerator 650L, double door",
-        pickup_address: "Lajpat Nagar, New Delhi 110024",
-        dropoff_address: "Greater Noida West, UP 201306",
-        suggested_price: 1200,
-        help_with_loading: true,
-        floor_pickup: 2,
-        floor_dropoff: 5,
-        bidding_ends_at: new Date(Date.now() + 25 * 60000).toISOString(),
-        created_at: new Date(Date.now() - 5 * 60000).toISOString(),
-        bid_count: 1,
-        lowest_bid: 1100,
-    },
-    {
-        id: "demo-3",
-        category: "bulk_items",
-        item_description: "Office shifting - 15 boxes + 4 chairs",
-        pickup_address: "Cyber City, Gurugram, HR 122002",
-        dropoff_address: "Sector 18, Noida 201301",
-        suggested_price: 2500,
-        help_with_loading: true,
-        floor_pickup: 0,
-        floor_dropoff: 2,
-        bidding_ends_at: new Date(Date.now() + 45 * 60000).toISOString(),
-        created_at: new Date(Date.now() - 10 * 60000).toISOString(),
-        bid_count: 5,
-        lowest_bid: 2200,
-    },
-];
 
 export default function JobBoard() {
     const { user } = useAuth();
@@ -94,16 +43,20 @@ export default function JobBoard() {
     // Fetch available jobs
     const fetchJobs = async () => {
         try {
+            // Using get_nearby_jobs RPC might be better if we had driver location, 
+            // but for now simple query is fine.
             const { data, error } = await supabase
                 .from("bookings")
                 .select("*")
                 .eq("status", "accepting_bids")
-                .gt("bidding_ends_at", new Date().toISOString())
+                .gt("bidding_ends_at", new Date().toISOString()) // Only active jobs
                 .order("created_at", { ascending: false });
 
             if (error) throw error;
 
             // Fetch bid counts for each job
+            // Note: This N+1 query pattern is okay for small scale MVP, 
+            // but ideally we'd use a view or the RPC 'get_nearby_jobs' which joins this data.
             const jobsWithBids = await Promise.all(
                 (data || []).map(async (job) => {
                     const { count } = await supabase
@@ -129,16 +82,11 @@ export default function JobBoard() {
                 })
             );
 
-            // Use demo jobs if no real jobs found (for demo mode)
-            if (jobsWithBids.length === 0) {
-                setJobs(DEMO_JOBS);
-            } else {
-                setJobs(jobsWithBids);
-            }
+            setJobs(jobsWithBids);
+
         } catch (err) {
             console.error("Error fetching jobs:", err);
-            // On error (e.g., table doesn't exist), show demo jobs
-            setJobs(DEMO_JOBS);
+            setJobs([]); // No demo jobs fallback to avoid confusion, just empty
         } finally {
             setLoading(false);
             setRefreshing(false);
@@ -187,14 +135,10 @@ export default function JobBoard() {
 
     const getCategoryIcon = (category: string) => {
         switch (category) {
-            case "furniture":
-                return Sofa;
-            case "appliances":
-                return Refrigerator;
-            case "bulk_items":
-                return Boxes;
-            default:
-                return Package;
+            case "furniture": return Sofa;
+            case "appliances": return Refrigerator;
+            case "bulk_items": return Boxes;
+            default: return Package;
         }
     };
 
@@ -208,238 +152,130 @@ export default function JobBoard() {
 
     if (loading) {
         return (
-            <div style={{
-                display: "flex",
-                justifyContent: "center",
-                alignItems: "center",
-                height: 200,
-            }}>
-                <RefreshCw size={24} className="animate-spin" color="#E16595" />
+            <div className="h-48 flex items-center justify-center">
+                <RefreshCw size={24} className="animate-spin text-[#E16595]" />
             </div>
         );
     }
 
     return (
-        <div style={{ padding: 16 }}>
+        <div className="min-h-screen bg-gray-50 pb-20">
             {/* Header */}
-            <div style={{
-                display: "flex",
-                justifyContent: "space-between",
-                alignItems: "center",
-                marginBottom: 16,
-            }}>
-                <h2 style={{ margin: 0, fontSize: 20, fontWeight: 700 }}>
-                    Available Jobs
-                </h2>
-                <button
-                    onClick={handleRefresh}
-                    disabled={refreshing}
-                    style={{
-                        background: "#F3F4F6",
-                        border: "none",
-                        borderRadius: 8,
-                        padding: 8,
-                        cursor: "pointer",
-                        display: "flex",
-                        alignItems: "center",
-                        gap: 4,
-                    }}
-                >
-                    <RefreshCw
-                        size={16}
-                        color="#6B7280"
-                        style={{
-                            animation: refreshing ? "spin 1s linear infinite" : "none",
-                        }}
-                    />
-                </button>
-            </div>
-
-            {/* Sort Options */}
-            <div style={{
-                display: "flex",
-                gap: 8,
-                marginBottom: 16,
-                overflowX: "auto",
-            }}>
-                {[
-                    { value: "newest", label: "Newest" },
-                    { value: "highest_price", label: "Highest Price" },
-                    { value: "lowest_competition", label: "Low Competition" },
-                ].map((option) => (
+            <div className="bg-white p-4 sticky top-0 z-10 border-b border-gray-100 shadow-sm">
+                <div className="flex justify-between items-center mb-4">
+                    <h2 className="text-xl font-bold">Job Board</h2>
                     <button
-                        key={option.value}
-                        onClick={() => setSortBy(option.value as SortOption)}
-                        style={{
-                            padding: "8px 12px",
-                            borderRadius: 20,
-                            border: "none",
-                            background: sortBy === option.value ? "#E16595" : "#F3F4F6",
-                            color: sortBy === option.value ? "white" : "#374151",
-                            fontSize: 12,
-                            fontWeight: 500,
-                            cursor: "pointer",
-                            whiteSpace: "nowrap",
-                        }}
+                        onClick={handleRefresh}
+                        disabled={refreshing}
+                        className="bg-gray-100 p-2 rounded-full hover:bg-gray-200 transition-colors"
                     >
-                        {option.label}
+                        <RefreshCw
+                            size={18}
+                            className={`text-gray-600 ${refreshing ? "animate-spin" : ""}`}
+                        />
                     </button>
-                ))}
+                </div>
+
+                {/* Sort Options */}
+                <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
+                    {[
+                        { value: "newest", label: "Newest" },
+                        { value: "highest_price", label: "Highest Price" },
+                        { value: "lowest_competition", label: "Low Competition" },
+                    ].map((option) => (
+                        <button
+                            key={option.value}
+                            onClick={() => setSortBy(option.value as SortOption)}
+                            className={`px-4 py-2 rounded-full text-xs font-semibold whitespace-nowrap transition-all ${sortBy === option.value
+                                    ? "bg-[#E16595] text-white shadow-md shadow-pink-200"
+                                    : "bg-gray-100 text-gray-500 hover:bg-gray-200"
+                                }`}
+                        >
+                            {option.label}
+                        </button>
+                    ))}
+                </div>
             </div>
 
             {/* Jobs List */}
-            {sortedJobs.length === 0 ? (
-                <div style={{
-                    textAlign: "center",
-                    padding: 40,
-                    color: "#9CA3AF",
-                }}>
-                    <Package size={48} strokeWidth={1} />
-                    <p style={{ marginTop: 12 }}>No jobs available right now</p>
-                    <p style={{ fontSize: 14 }}>Check back in a few minutes!</p>
-                </div>
-            ) : (
-                <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-                    {sortedJobs.map((job) => {
+            <div className="p-4 space-y-4">
+                {sortedJobs.length === 0 ? (
+                    <div className="text-center py-12 text-gray-400">
+                        <Package size={48} className="mx-auto mb-4 opacity-50" />
+                        <p className="font-medium">No live jobs right now</p>
+                        <p className="text-sm">Keep your app open to get notified</p>
+                    </div>
+                ) : (
+                    sortedJobs.map((job) => {
                         const CategoryIcon = getCategoryIcon(job.category);
                         const timeRemaining = getTimeRemaining(job.bidding_ends_at);
-                        const isUrgent = timeRemaining.startsWith("0:") || timeRemaining.startsWith("1:");
+                        const isUrgent = timeRemaining.startsWith("0:");
 
                         return (
                             <div
                                 key={job.id}
                                 onClick={() => setSelectedJob(job)}
-                                style={{
-                                    background: "white",
-                                    borderRadius: 16,
-                                    padding: 16,
-                                    cursor: "pointer",
-                                    border: isUrgent ? "2px solid #EF4444" : "2px solid transparent",
-                                    transition: "all 0.2s",
-                                }}
+                                className={`bg-white rounded-2xl p-4 cursor-pointer transition-all active:scale-[0.98] border-2 ${isUrgent ? "border-red-100 shadow-sm" : "border-transparent shadow-sm"
+                                    }`}
                             >
-                                {/* Category & Time */}
-                                <div style={{
-                                    display: "flex",
-                                    justifyContent: "space-between",
-                                    alignItems: "center",
-                                    marginBottom: 12,
-                                }}>
-                                    <div style={{
-                                        display: "flex",
-                                        alignItems: "center",
-                                        gap: 8,
-                                    }}>
-                                        <div style={{
-                                            width: 36,
-                                            height: 36,
-                                            borderRadius: 10,
-                                            background: "#FDF2F8",
-                                            display: "flex",
-                                            alignItems: "center",
-                                            justifyContent: "center",
-                                        }}>
-                                            <CategoryIcon size={18} color="#E16595" />
+                                {/* Top Row */}
+                                <div className="flex justify-between items-start mb-3">
+                                    <div className="flex items-center gap-3">
+                                        <div className="w-12 h-12 rounded-xl bg-pink-50 flex items-center justify-center text-[#E16595]">
+                                            <CategoryIcon size={24} />
                                         </div>
                                         <div>
-                                            <div style={{
-                                                fontSize: 14,
-                                                fontWeight: 600,
-                                                textTransform: "capitalize",
-                                            }}>
-                                                {job.category?.replace(/_/g, " ")}
-                                            </div>
-                                            <div style={{ fontSize: 12, color: "#6B7280" }}>
-                                                {job.item_description?.slice(0, 30)}...
-                                            </div>
+                                            <h3 className="font-bold text-gray-900 capitalize">
+                                                {job.category.replace(/_/g, " ")}
+                                            </h3>
+                                            <p className="text-xs text-gray-500 line-clamp-1 w-40">
+                                                {job.item_description}
+                                            </p>
                                         </div>
                                     </div>
-                                    <div style={{
-                                        display: "flex",
-                                        alignItems: "center",
-                                        gap: 4,
-                                        padding: "4px 8px",
-                                        borderRadius: 6,
-                                        background: isUrgent ? "#FEE2E2" : "#F3F4F6",
-                                        color: isUrgent ? "#DC2626" : "#6B7280",
-                                        fontSize: 12,
-                                        fontWeight: 600,
-                                    }}>
+                                    <div className={`px-2 py-1 rounded-lg text-xs font-bold flex items-center gap-1 ${isUrgent ? "bg-red-50 text-red-500" : "bg-gray-100 text-gray-600"
+                                        }`}>
                                         <Clock size={12} />
                                         {timeRemaining}
                                     </div>
                                 </div>
 
-                                {/* Locations */}
-                                <div style={{ marginBottom: 12 }}>
-                                    <div style={{
-                                        display: "flex",
-                                        alignItems: "flex-start",
-                                        gap: 8,
-                                        fontSize: 13,
-                                    }}>
-                                        <MapPin size={14} color="#10B981" style={{ marginTop: 2 }} />
-                                        <span>{job.pickup_address}</span>
+                                {/* Locations - simplified */}
+                                <div className="space-y-2 mb-4">
+                                    <div className="flex items-center gap-2 text-sm text-gray-700">
+                                        <div className="w-2 h-2 rounded-full bg-green-500" />
+                                        <div className="truncate">{job.pickup_address}</div>
                                     </div>
-                                    <div style={{
-                                        display: "flex",
-                                        alignItems: "flex-start",
-                                        gap: 8,
-                                        fontSize: 13,
-                                        marginTop: 6,
-                                    }}>
-                                        <MapPin size={14} color="#EF4444" style={{ marginTop: 2 }} />
-                                        <span>{job.dropoff_address}</span>
+                                    <div className="flex items-center gap-2 text-sm text-gray-700">
+                                        <div className="w-2 h-2 rounded-full bg-red-500" />
+                                        <div className="truncate">{job.dropoff_address}</div>
                                     </div>
                                 </div>
 
-                                {/* Stats Row */}
-                                <div style={{
-                                    display: "flex",
-                                    justifyContent: "space-between",
-                                    alignItems: "center",
-                                    paddingTop: 12,
-                                    borderTop: "1px solid #E5E7EB",
-                                }}>
-                                    <div style={{
-                                        display: "flex",
-                                        alignItems: "center",
-                                        gap: 12,
-                                    }}>
-                                        <div style={{
-                                            display: "flex",
-                                            alignItems: "center",
-                                            gap: 4,
-                                            fontSize: 12,
-                                            color: "#6B7280",
-                                        }}>
+                                {/* Footer Stats */}
+                                <div className="flex justify-between items-center pt-3 border-t border-gray-100">
+                                    <div className="flex items-center gap-3 text-xs text-gray-500">
+                                        <div className="flex items-center gap-1">
                                             <Users size={14} />
-                                            {job.bid_count || 0} bids
+                                            {job.bid_count} bids
                                         </div>
                                         {job.lowest_bid && (
-                                            <div style={{
-                                                fontSize: 12,
-                                                color: "#6B7280",
-                                            }}>
+                                            <div className="text-[#E16595]">
                                                 Lowest: ₹{job.lowest_bid}
                                             </div>
                                         )}
                                     </div>
-                                    <div style={{
-                                        fontSize: 18,
-                                        fontWeight: 700,
-                                        color: "#E16595",
-                                    }}>
+                                    <div className="text-lg font-bold text-gray-900">
                                         ₹{job.suggested_price}
                                     </div>
                                 </div>
                             </div>
                         );
-                    })}
-                </div>
-            )}
+                    })
+                )}
+            </div>
 
-            {/* Place Bid Modal */}
+            {/* Modal */}
             {selectedJob && (
                 <PlaceBidModal
                     job={selectedJob}
@@ -450,12 +286,6 @@ export default function JobBoard() {
                     }}
                 />
             )}
-
-            <style>{`
-                @keyframes spin {
-                    to { transform: rotate(360deg); }
-                }
-            `}</style>
         </div>
     );
 }
